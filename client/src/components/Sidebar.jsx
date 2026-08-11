@@ -1,7 +1,8 @@
 import React from 'react';
 import {
   LayoutDashboard, Package, Warehouse, ShoppingCart,
-  FileCheck2, Pill, Stethoscope, BarChart3, Settings, Hospital
+  FileCheck2, Pill, Stethoscope, BarChart3, Settings, Hospital,
+  ArrowLeftRight, ClipboardCheck, AlertOctagon
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
@@ -10,8 +11,11 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'products', label: 'Product Master', icon: Package },
     { id: 'stock', label: 'Stock & FEFO Ledger', icon: BarChart3 },
     { id: 'stores', label: 'Stores & Sub-stores', icon: Warehouse },
+    { id: 'transfers', label: 'Stock Transfers', icon: ArrowLeftRight },
     { id: 'procurement', label: 'Procurement & GRN', icon: ShoppingCart },
     { id: 'indents', label: 'Dept Indents & Approvals', icon: FileCheck2 },
+    { id: 'counts', label: 'Physical Stock Counts', icon: ClipboardCheck },
+    { id: 'recalls', label: 'Batch Recalls', icon: AlertOctagon },
     { id: 'pharmacy', label: 'Pharmacy & Dispensing', icon: Pill },
     { id: 'assets', label: 'Medical Asset Tracker', icon: Stethoscope },
     { id: 'reports', label: 'Reports & Audits', icon: BarChart3 },
@@ -58,7 +62,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
             SCEC Health
           </div>
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Inventory System
+            Supply Chain System
           </div>
         </div>
       </div>
@@ -102,8 +106,8 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
       {/* Footer Info */}
       <div style={{ padding: '1rem', borderTop: '1px solid var(--border-card)', fontSize: '0.75rem', color: 'var(--text-dark)' }}>
-        <div>SCEC MERN Inventory v1.0</div>
-        <div>FEFO Engine Active</div>
+        <div>SCEC MERN Inventory v1.0-PROD</div>
+        <div>Atomic FEFO & RBAC Active</div>
       </div>
     </aside>
   );

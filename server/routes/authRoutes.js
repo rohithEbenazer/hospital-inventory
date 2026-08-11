@@ -3,7 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, authenticateToken } = require('../middleware/auth');
 
 // Login Route
 router.post('/login', async (req, res, next) => {
@@ -12,16 +12,22 @@ router.post('/login', async (req, res, next) => {
     const user = await User.findOne({ username });
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch && password !== 'admin123') { // demo override password
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password.' });
     }
 
     const token = jwt.sign(
-      { id: user._id, username: user.username, role: user.role, fullName: user.fullName },
+      {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        fullName: user.fullName,
+        hospitalId: user.hospitalId || 'HOSP-001'
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -34,7 +40,8 @@ router.post('/login', async (req, res, next) => {
         username: user.username,
         fullName: user.fullName,
         role: user.role,
-        department: user.department
+        department: user.department,
+        hospitalId: user.hospitalId || 'HOSP-001'
       }
     });
   } catch (err) {
@@ -42,15 +49,17 @@ router.post('/login', async (req, res, next) => {
   }
 });
 
-// Current User info
-router.get('/me', async (req, res) => {
+// Current User Info
+router.get('/me', authenticateToken, async (req, res) => {
   res.json({
     success: true,
     user: {
-      username: 'admin',
-      fullName: 'Dr. Sarah Jenkins',
-      role: req.headers['x-demo-role'] || 'SUPER_ADMIN',
-      department: 'Central Inventory'
+      id: req.user.id,
+      username: req.user.username,
+      fullName: req.user.fullName,
+      role: req.user.role,
+      department: req.user.department || 'Central Inventory',
+      hospitalId: req.user.hospitalId || 'HOSP-001'
     }
   });
 });

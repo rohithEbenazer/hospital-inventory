@@ -9,11 +9,30 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Security Middleware Stack
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-demo-role']
+}));
+app.use(express.json({ limit: '10mb' }));
 
-// Routes
+// Standardized /api/v1 Route Mounts
+app.use('/api/v1/auth', require('./routes/authRoutes'));
+app.use('/api/v1/products', require('./routes/productRoutes'));
+app.use('/api/v1', require('./routes/categoryRoutes'));
+app.use('/api/v1/stores', require('./routes/warehouseRoutes'));
+app.use('/api/v1/stock', require('./routes/stockRoutes'));
+app.use('/api/v1/procurement', require('./routes/procurementRoutes'));
+app.use('/api/v1/indents', require('./routes/indentRoutes'));
+app.use('/api/v1/transfers', require('./routes/transferRoutes'));
+app.use('/api/v1/stock-counts', require('./routes/stockCountRoutes'));
+app.use('/api/v1/recalls', require('./routes/recallRoutes'));
+app.use('/api/v1/pharmacy', require('./routes/pharmacyRoutes'));
+app.use('/api/v1/assets', require('./routes/assetRoutes'));
+app.use('/api/v1/reports', require('./routes/reportRoutes'));
+
+// Legacy endpoint backward compatibility aliases
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api', require('./routes/categoryRoutes'));
@@ -26,11 +45,11 @@ app.use('/api/assets', require('./routes/assetRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 
 // Root Health Check
-app.get('/api/health', (req, res) => {
+app.get('/api/v1/health', (req, res) => {
   res.json({
     status: 'OK',
-    service: 'Hospital Inventory & Supply Chain Management API',
-    version: '1.0.0',
+    service: 'SCEC Hospital Inventory & Supply Chain Management Production API',
+    version: '1.0.0-PROD',
     timestamp: new Date()
   });
 });
@@ -43,6 +62,6 @@ const PORT = process.env.PORT || 5000;
 connectDB().then(async () => {
   await seedDatabase();
   app.listen(PORT, () => {
-    console.log(`Hospital Inventory API Server running on port ${PORT}`);
+    console.log(`SCEC Hospital Inventory API Server running on port ${PORT}`);
   });
 });
