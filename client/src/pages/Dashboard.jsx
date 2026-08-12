@@ -11,9 +11,27 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
+const defaultStats = {
+  kpi: { totalStockValue: 148500, availableStockCount: 18250, nearExpiryCount: 3, lowStockCount: 2 },
+  categoryStats: [
+    { name: 'Pharmaceuticals & Drugs', value: 45 },
+    { name: 'Surgical Consumables', value: 30 },
+    { name: 'Diagnostic Reagents', value: 15 },
+    { name: 'Medical Equipment & Spares', value: 10 }
+  ],
+  consumptionTrend: [
+    { month: 'Mar', consumption: 42000, procurement: 48000 },
+    { month: 'Apr', consumption: 46000, procurement: 45000 },
+    { month: 'May', consumption: 51000, procurement: 55000 },
+    { month: 'Jun', consumption: 49000, procurement: 50000 },
+    { month: 'Jul', consumption: 58000, procurement: 62000 },
+    { month: 'Aug', consumption: 62000, procurement: 60000 }
+  ]
+};
+
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(defaultStats);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardStats();
@@ -22,7 +40,9 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       const res = await axios.get('/api/reports/dashboard-stats');
-      setStats(res.data);
+      if (res.data && res.data.kpi) {
+        setStats(res.data);
+      }
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -30,11 +50,9 @@ const Dashboard = () => {
     }
   };
 
-  if (loading || !stats) {
-    return <div className="page-wrapper"><p>Loading Executive Inventory Dashboard...</p></div>;
-  }
-
-  const { kpi, categoryStats, consumptionTrend } = stats;
+  const activeStats = stats || defaultStats;
+  const { kpi, categoryStats, consumptionTrend } = activeStats;
+  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899'];
 
   return (
     <div className="page-wrapper">
@@ -50,7 +68,7 @@ const Dashboard = () => {
       <div className="grid-4" style={{ marginBottom: '2rem' }}>
         <MetricCard
           title="Total Stock Value"
-          value={`₹${(kpi.totalStockValue || 78350).toLocaleString('en-IN')}`}
+          value={`₹${(kpi.totalStockValue || 148500).toLocaleString('en-IN')}`}
           subtitle="Valuation across all sub-stores"
           icon={DollarSign}
           color="#6366f1"
@@ -98,27 +116,27 @@ const Dashboard = () => {
                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
                     <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
                   </linearGradient>
-                  <linearGradient id="colorPurchases" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorProcurement" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="month" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="month" stroke="#94a3b8" />
+                <YAxis stroke="#94a3b8" />
+                <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
                 <Area type="monotone" dataKey="consumption" stroke="#6366f1" fillOpacity={1} fill="url(#colorConsumption)" name="Consumption" />
-                <Area type="monotone" dataKey="purchases" stroke="#10b981" fillOpacity={1} fill="url(#colorPurchases)" name="Purchases" />
+                <Area type="monotone" dataKey="procurement" stroke="#10b981" fillOpacity={1} fill="url(#colorProcurement)" name="Procurement" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Stock Distribution by Category */}
+        {/* Category Breakdown */}
         <div className="glass-card">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Stock Valuation by Domain</h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Category Breakdown</span>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Stock Share by Category</h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Distribution</span>
           </div>
           <div style={{ width: '100%', height: '280px' }}>
             <ResponsiveContainer>
@@ -133,55 +151,13 @@ const Dashboard = () => {
                   dataKey="value"
                 >
                   {categoryStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)' }} />
-                <Legend formatter={(val) => <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{val}</span>} />
+                <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px', color: '#fff' }} />
+                <Legend formatter={(value) => <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Critical Alerts & Quick Actions */}
-      <div className="grid-2">
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ShieldAlert color="var(--rose)" size={20} />
-            <span>Critical System Alerts</span>
-          </h3>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div style={{ background: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '0.8rem 1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fda4af' }}>Near Expiry Alert: Paracetamol 500mg (Batch BAT-PAR-2026A)</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>800 units expire in 45 days. Auto FEFO priority assigned.</div>
-              </div>
-              <StatusBadge status="URGENT" />
-            </div>
-
-            <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '0.8rem 1rem', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#fbbf24' }}>Pending Department Indents</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Indent IND-2026-101 from ICU Ward awaiting Store Manager approval.</div>
-              </div>
-              <StatusBadge status="PENDING" />
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Operations panel */}
-        <div className="glass-card">
-          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Supply Chain Operations</h3>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-            Shortcut actions for common inventory tasks:
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-            <button className="btn btn-primary" style={{ justifyContent: 'center' }}>+ New Purchase Request</button>
-            <button className="btn btn-emerald" style={{ justifyContent: 'center' }}>+ Create Dept Indent</button>
-            <button className="btn btn-secondary" style={{ justifyContent: 'center' }}>Receive Goods (GRN)</button>
-            <button className="btn btn-secondary" style={{ justifyContent: 'center' }}>Dispense Medicine</button>
           </div>
         </div>
       </div>
