@@ -1,23 +1,41 @@
-/**
- * NotificationService — create in-app notifications for key events
- */
 const Notification = require('../models/Notification');
 
-async function createNotification({ hospitalId, recipientId, recipientRole, type, title, message, priority = 'MEDIUM', resourceType, resourceId }) {
+/**
+ * Section 39 Multi-Channel Notification Engine
+ * Supports: IN_APP, EMAIL, SMS, PUSH_NOTIFICATION
+ */
+async function createNotification({
+  hospitalId = 'HOSP-001',
+  recipientId,
+  recipientRole = 'store_manager',
+  type,
+  title,
+  message,
+  priority = 'MEDIUM',
+  resourceType,
+  resourceId,
+  channels = ['IN_APP', 'EMAIL']
+}) {
   try {
-    await Notification.create({
+    return await Notification.create({
       hospitalId,
       recipientId,
       recipientRole,
       type,
+      channels,
       title,
       message,
       priority,
       resourceType,
       resourceId,
+      deliveryStatus: {
+        inApp: channels.includes('IN_APP'),
+        email: channels.includes('EMAIL'),
+        sms: channels.includes('SMS'),
+        push: channels.includes('PUSH_NOTIFICATION')
+      }
     });
   } catch (err) {
-    // Notification failure must never break main flow
     console.error('[NotificationService] Failed to create notification:', err.message);
   }
 }
@@ -26,12 +44,13 @@ async function notifyLowStock({ hospitalId, productId, productName, currentQty, 
   await createNotification({
     hospitalId,
     recipientRole: 'store_manager',
-    type: 'LOW_STOCK',
-    title: `Low Stock: ${productName}`,
-    message: `${productName} has ${currentQty} units remaining (reorder point: ${reorderPoint}). Please initiate a purchase request.`,
+    type: currentQty === 0 ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+    title: `${currentQty === 0 ? 'Out of Stock' : 'Low Stock'}: ${productName}`,
+    message: `${productName} has ${currentQty} units remaining (reorder point: ${reorderPoint}).`,
     priority: currentQty === 0 ? 'CRITICAL' : 'HIGH',
     resourceType: 'Product',
     resourceId: productId,
+    channels: ['IN_APP', 'EMAIL', 'SMS']
   });
 }
 
@@ -40,37 +59,33 @@ async function notifyNearExpiry({ hospitalId, productId, productName, batchNumbe
   await createNotification({
     hospitalId,
     recipientRole: 'store_manager',
-    type: 'NEAR_EXPIRY',
-    title: `Near Expiry: ${productName}`,
+    type: daysLeft <= 0 ? 'EXPIRED' : 'NEAR_EXPIRY',
+    title: `${daysLeft <= 0 ? 'Stock Expired' : 'Near Expiry'}: ${productName}`,
     message: `Batch ${batchNumber} of ${productName} expires on ${new Date(expiryDate).toDateString()} (${daysLeft} days left).`,
     priority,
     resourceType: 'Product',
     resourceId: productId,
+    channels: ['IN_APP', 'EMAIL', 'PUSH_NOTIFICATION']
   });
 }
 
-async function notifyPendingApproval({ hospitalId, recipientId, resourceType, resourceId, resourceNumber }) {
+async function notifyAssetMaintenance({ hospitalId, assetId, serialNumber, productName, alertType, dueDate }) {
   await createNotification({
     hospitalId,
-    recipientId,
-    type: 'PENDING_APPROVAL',
-    title: `Approval Required: ${resourceType} ${resourceNumber}`,
-    message: `${resourceType} ${resourceNumber} is awaiting your approval.`,
+    recipientRole: 'biomedical_engineer',
+    type: alertType, // 'EQUIPMENT_WARRANTY_EXPIRY' | 'AMC_EXPIRY' | 'CALIBRATION_DUE'
+    title: `Asset Maintenance Alert: ${productName} (${serialNumber})`,
+    message: `${alertType.replace(/_/g, ' ')} due on ${new Date(dueDate).toDateString()}.`,
     priority: 'HIGH',
-    resourceType,
-    resourceId,
+    resourceType: 'MedicalAsset',
+    resourceId: assetId,
+    channels: ['IN_APP', 'EMAIL', 'PUSH_NOTIFICATION']
   });
 }
 
-async function notifyRecall({ hospitalId, productName, batchNumbers, reason }) {
-  await createNotification({
-    hospitalId,
-    recipientRole: 'admin',
-    type: 'RECALLED',
-    title: `Recall Initiated: ${productName}`,
-    message: `A recall has been initiated for ${productName}. Affected batches: ${batchNumbers.join(', ')}. Reason: ${reason}`,
-    priority: 'CRITICAL',
-  });
-}
-
-module.exports = { createNotification, notifyLowStock, notifyNearExpiry, notifyPendingApproval, notifyRecall };
+module.exports = {
+  createNotification,
+  notifyLowStock,
+  notifyNearExpiry,
+  notifyAssetMaintenance
+};
