@@ -47,6 +47,8 @@ app.use('/api/v1/transfers', require('./routes/transferRoutes'));
 app.use('/api/v1/stock-counts', require('./routes/stockCountRoutes'));
 app.use('/api/v1/recalls', require('./routes/recallRoutes'));
 app.use('/api/v1/pharmacy', require('./routes/pharmacyRoutes'));
+app.use('/api/v1/categories', require('./routes/categoryRoutes'));
+app.use('/api/v1/units', require('./routes/unitRoutes'));
 app.use('/api/v1/assets', require('./routes/assetRoutes'));
 app.use('/api/v1/reports', require('./routes/reportRoutes'));
 app.use('/api/v1/adjustments', require('./routes/adjustmentRoutes'));

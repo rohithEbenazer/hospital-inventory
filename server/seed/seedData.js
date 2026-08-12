@@ -8,6 +8,8 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 const Indent = require('../models/Indent');
 const SerialNumber = require('../models/SerialNumber');
 const AuditLog = require('../models/AuditLog');
+const Category = require('../models/Category');
+const Unit = require('../models/Unit');
 const bcrypt = require('bcryptjs');
 
 const seedDatabase = async () => {
@@ -18,7 +20,43 @@ const seedDatabase = async () => {
       return;
     }
 
-    console.log('Seeding initial Hospital Inventory dataset...');
+    console.log('Seeding initial Hospital Inventory dataset (Sections 1-300)...');
+
+    // 0. Seed Section 10 Categories
+    const medCategory = await Category.create({ hospitalId: 'HOSP-001', name: 'Medicines', code: 'CAT-MED', itemType: 'MEDICINE', description: 'Pharmaceutical drugs' });
+    const consCategory = await Category.create({ hospitalId: 'HOSP-001', name: 'Consumables', code: 'CAT-CONS', itemType: 'CONSUMABLE', description: 'Surgical and clinical consumables' });
+
+    await Category.create([
+      { hospitalId: 'HOSP-001', name: 'Antibiotics', code: 'CAT-ANTIBIOTICS', parentId: medCategory._id, itemType: 'MEDICINE' },
+      { hospitalId: 'HOSP-001', name: 'Analgesics', code: 'CAT-ANALGESICS', parentId: medCategory._id, itemType: 'MEDICINE' },
+      { hospitalId: 'HOSP-001', name: 'Antihypertensives', code: 'CAT-ANTIHYPERTENSIVES', parentId: medCategory._id, itemType: 'MEDICINE' },
+      { hospitalId: 'HOSP-001', name: 'Emergency Drugs', code: 'CAT-EMERGENCY', parentId: medCategory._id, itemType: 'MEDICINE' },
+
+      { hospitalId: 'HOSP-001', name: 'Syringes', code: 'CAT-SYRINGES', parentId: consCategory._id, itemType: 'CONSUMABLE' },
+      { hospitalId: 'HOSP-001', name: 'Gloves', code: 'CAT-GLOVES', parentId: consCategory._id, itemType: 'CONSUMABLE' },
+      { hospitalId: 'HOSP-001', name: 'IV Sets', code: 'CAT-IVSETS', parentId: consCategory._id, itemType: 'CONSUMABLE' },
+      { hospitalId: 'HOSP-001', name: 'Catheters', code: 'CAT-CATHETERS', parentId: consCategory._id, itemType: 'CONSUMABLE' }
+    ]);
+
+    // 0b. Seed Section 11 Units & Conversions
+    await Unit.create([
+      { hospitalId: 'HOSP-001', name: 'Box', abbreviation: 'BX', conversions: [{ toUnit: 'Gloves', conversionFactor: 100 }, { toUnit: 'Vials', conversionFactor: 10 }] },
+      { hospitalId: 'HOSP-001', name: 'Carton', abbreviation: 'CTN', conversions: [{ toUnit: 'Boxes', conversionFactor: 20 }] },
+      { hospitalId: 'HOSP-001', name: 'Pack', abbreviation: 'PK', conversions: [{ toUnit: 'Pieces', conversionFactor: 10 }] },
+      { hospitalId: 'HOSP-001', name: 'Piece', abbreviation: 'PC' },
+      { hospitalId: 'HOSP-001', name: 'Vial', abbreviation: 'VIAL' },
+      { hospitalId: 'HOSP-001', name: 'Ampoule', abbreviation: 'AMP' },
+      { hospitalId: 'HOSP-001', name: 'Tablet', abbreviation: 'TAB' },
+      { hospitalId: 'HOSP-001', name: 'Capsule', abbreviation: 'CAP' },
+      { hospitalId: 'HOSP-001', name: 'Bottle', abbreviation: 'BTL' },
+      { hospitalId: 'HOSP-001', name: 'Tube', abbreviation: 'TUBE' },
+      { hospitalId: 'HOSP-001', name: 'Kg', abbreviation: 'KG' },
+      { hospitalId: 'HOSP-001', name: 'Gram', abbreviation: 'GM' },
+      { hospitalId: 'HOSP-001', name: 'Litre', abbreviation: 'LTR' },
+      { hospitalId: 'HOSP-001', name: 'Millilitre', abbreviation: 'ML' },
+      { hospitalId: 'HOSP-001', name: 'Pair', abbreviation: 'PR' },
+      { hospitalId: 'HOSP-001', name: 'Set', abbreviation: 'SET' }
+    ]);
 
     const hashedPassword = await bcrypt.hash('admin123', 10);
 
