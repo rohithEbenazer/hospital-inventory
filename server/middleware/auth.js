@@ -70,4 +70,4 @@ const requireRole = (...allowedRoles) => {
   };
 };
 
-module.exports = { authenticateToken, requireRole, JWT_SECRET };
+module.exports = { authenticateToken, authenticate: authenticateToken, requireRole, JWT_SECRET };

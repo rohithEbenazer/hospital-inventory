@@ -2,7 +2,7 @@ import React from 'react';
 import {
   LayoutDashboard, Package, Warehouse, ShoppingCart,
   FileCheck2, Pill, Stethoscope, BarChart3, Settings, Hospital,
-  ArrowLeftRight, ClipboardCheck, AlertOctagon
+  ArrowLeftRight, ClipboardCheck, AlertOctagon, Cpu, ClipboardList
 } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
@@ -19,6 +19,8 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'pharmacy', label: 'Pharmacy & Dispensing', icon: Pill },
     { id: 'assets', label: 'Medical Asset Tracker', icon: Stethoscope },
     { id: 'reports', label: 'Reports & Audits', icon: BarChart3 },
+    { id: 'system300', label: '300 Ops & Compliance', icon: Cpu },
+    { id: 'ops', label: 'Operations & Shifts', icon: ClipboardList },
     { id: 'settings', label: 'RBAC & Settings', icon: Settings }
   ];
 
