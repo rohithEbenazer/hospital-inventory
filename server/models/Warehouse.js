@@ -1,17 +1,9 @@
 const mongoose = require('mongoose');
 
-const LocationSchema = new mongoose.Schema({
-  code: { type: String, required: true }, // e.g. CENTRAL-01-A-R03-S02
-  zone: { type: String, default: 'A' },
-  rack: { type: String, default: 'R01' },
-  shelf: { type: String, default: 'S01' },
-  bin: { type: String, default: 'B01' },
-  description: { type: String }
-});
-
 const WarehouseSchema = new mongoose.Schema({
-  code: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
+  hospitalId:       { type: mongoose.Schema.Types.Mixed, required: true, default: 'HOSP-001' },
+  code:             { type: String, required: true },
+  name:             { type: String, required: true },
   type: {
     type: String,
     enum: [
@@ -19,13 +11,18 @@ const WarehouseSchema = new mongoose.Schema({
       'WARD_STORE', 'LAB_STORE', 'RADIOLOGY_STORE', 'EMERGENCY_STORE',
       'MAINTENANCE_STORE', 'LINEN_STORE', 'HOUSEKEEPING_STORE', 'IT_STORE'
     ],
+    required: true,
     default: 'CENTRAL_STORE'
   },
-  department: { type: String, required: true },
-  managerName: { type: String, default: 'Store Manager' },
+  departmentId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
+  department:       { type: String, default: 'Central Store' },
+  address:          { type: String },
+  managerId:        { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  managerName:      { type: String, default: 'Store Manager' },
   temperatureRange: { type: String, default: '20-25°C' },
-  locations: [LocationSchema],
-  isActive: { type: Boolean, default: true }
+  isActive:         { type: Boolean, default: true }
 }, { timestamps: true });
+
+WarehouseSchema.index({ hospitalId: 1, code: 1 }, { unique: true });
 
 module.exports = mongoose.model('Warehouse', WarehouseSchema);

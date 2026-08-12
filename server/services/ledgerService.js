@@ -4,14 +4,20 @@ const InventoryBalance = require('../models/InventoryBalance');
 const Product = require('../models/Product');
 
 /**
- * Atomic Transaction Ledger & Stock Balance Updater
- * Enforces ZERO NEGATIVE STOCK validation and atomic session updates.
+ * Section 13 & 14 Atomic Inventory Transaction Engine
+ * The transaction ledger is the authoritative source of truth.
  */
 const recordStockTransaction = async ({
   hospitalId = 'HOSP-001',
   productId,
-  warehouseName,
+  warehouseId,
+  warehouseName = 'Central Store',
+  locationId,
+  locationCode,
+  batchId,
   batchNumber,
+  serialNumberId,
+  serialNumber,
   transactionType,
   referenceType = 'SYSTEM',
   referenceId = 'REF-001',
@@ -30,12 +36,15 @@ const recordStockTransaction = async ({
 
     const cost = unitCost !== undefined ? unitCost : product.unitCost;
 
-    // Find or create InventoryBalance record for this product and store
-    let balance = await InventoryBalance.findOne({
-      hospitalId,
-      productId,
-      warehouseName
-    }).session(session);
+    // Section 13: Find or create InventoryBalance using composite key
+    const query = { hospitalId, productId };
+    if (warehouseId) query.warehouseId = warehouseId;
+    else if (warehouseName) query.warehouseName = warehouseName;
+    if (locationId) query.locationId = locationId;
+    if (batchId) query.batchId = batchId;
+    if (serialNumberId) query.serialNumberId = serialNumberId;
+
+    let balance = await InventoryBalance.findOne(query).session(session);
 
     if (!balance) {
       if (quantity < 0) {
@@ -46,25 +55,42 @@ const recordStockTransaction = async ({
         productId: product._id,
         productSku: product.sku,
         productName: product.name,
+        warehouseId,
         warehouseName,
+        locationId,
+        locationCode,
+        batchId,
+        batchNumber,
+        serialNumberId,
+        serialNumber,
         availableQty: 0,
+        averageCost: cost,
+        lastCost: cost,
         unitCost: cost,
-        totalStockValue: 0
+        stockValue: 0
       });
     }
 
-    // STRICT VALIDATION: Reject any operation that results in negative stock balance!
+    // Zero negative stock validation invariant
     const newQty = balance.availableQty + quantity;
     if (newQty < 0) {
-      throw new Error(`INSUFFICIENT_STOCK: Cannot deduct ${Math.abs(quantity)} units of ${product.name}. Available stock in ${warehouseName} is only ${balance.availableQty} units.`);
+      throw new Error(`INSUFFICIENT_STOCK: Cannot deduct ${Math.abs(quantity)} units of ${product.name}. Available stock is only ${balance.availableQty} units.`);
     }
 
+    // Weighted average cost update for incoming stock
+    if (quantity > 0 && cost > 0) {
+      const currentVal = balance.availableQty * (balance.averageCost || cost);
+      const incomingVal = quantity * cost;
+      balance.averageCost = (currentVal + incomingVal) / newQty;
+    }
+    balance.lastCost = cost;
     balance.availableQty = newQty;
     balance.unitCost = cost;
-    balance.totalStockValue = newQty * cost;
+    balance.stockValue = newQty * (balance.averageCost || cost);
+
     await balance.save({ session });
 
-    // Create immutable transaction ledger entry
+    // Section 14: Create immutable transaction ledger entry
     const txNumber = 'TX-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const ledgerEntry = new TransactionLedger({
       transactionNumber: txNumber,
