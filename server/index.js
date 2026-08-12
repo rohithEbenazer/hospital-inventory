@@ -26,6 +26,10 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-demo-role', 'idempotency-key', 'x-idempotency-key']
 }));
+const { rateLimiter, securityHeaders } = require('./middleware/securityMiddleware');
+
+app.use(securityHeaders);
+app.use(rateLimiter());
 app.use(express.json({ limit: '10mb' }));
 
 const { startExpiryAlertJob } = require('./jobs/expiryAlertJob');
@@ -56,6 +60,10 @@ app.use('/api/v1/system300', require('./routes/admin300Routes'));
 app.use('/api/v1/ops', require('./routes/opsRoutes'));
 app.use('/api/v1/clinical', require('./routes/clinicalRoutes'));
 app.use('/api/v1/fhir', require('./routes/clinicalRoutes'));
+app.use('/api/v1/enterprise', require('./routes/enterpriseRoutes'));
+app.use('/api/v1/supplier-portal', require('./routes/enterpriseRoutes'));
+app.use('/api/v1/mobile-sync', require('./routes/enterpriseRoutes'));
+app.use('/api/v1/health', require('./routes/enterpriseRoutes'));
 
 // Legacy endpoint backward compatibility aliases
 app.use('/api/auth', require('./routes/authRoutes'));

@@ -1,0 +1,32 @@
+name: SCEC Hospital Inventory CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: |
+          npm --prefix server install
+          npm --prefix client install
+
+      - name: Run Backend Integration Tests
+        run: |
+          npm --prefix server test -- --passWithNoTests
+
+      - name: Build Production Client Artifacts
+        run: |
+          npm --prefix client run build

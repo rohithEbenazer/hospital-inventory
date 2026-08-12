@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage';
 import System300Dashboard from './pages/System300Dashboard';
 import OperationsHub from './pages/OperationsHub';
 import ClinicalHub from './pages/ClinicalHub';
+import EnterpriseMasterHub from './pages/EnterpriseMasterHub';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -40,6 +41,7 @@ function App() {
       case 'system300': return <System300Dashboard />;
       case 'ops': return <OperationsHub />;
       case 'clinical': return <ClinicalHub />;
+      case 'enterprise': return <EnterpriseMasterHub />;
       default: return <Dashboard />;
     }
   };
