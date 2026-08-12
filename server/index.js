@@ -54,6 +54,8 @@ app.use('/api/v1/patients', require('./routes/patientRoutes'));
 app.use('/api/v1/suppliers', require('./routes/supplierRoutes'));
 app.use('/api/v1/system300', require('./routes/admin300Routes'));
 app.use('/api/v1/ops', require('./routes/opsRoutes'));
+app.use('/api/v1/clinical', require('./routes/clinicalRoutes'));
+app.use('/api/v1/fhir', require('./routes/clinicalRoutes'));
 
 // Legacy endpoint backward compatibility aliases
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -75,6 +77,7 @@ app.use('/api/patients', require('./routes/patientRoutes'));
 app.use('/api/suppliers', require('./routes/supplierRoutes'));
 app.use('/api/system300', require('./routes/admin300Routes'));
 app.use('/api/ops', require('./routes/opsRoutes'));
+app.use('/api/clinical', require('./routes/clinicalRoutes'));
 
 // Root Health Check
 app.get('/api/v1/health', (req, res) => {

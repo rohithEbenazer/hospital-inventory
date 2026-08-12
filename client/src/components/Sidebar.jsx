@@ -21,6 +21,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'reports', label: 'Reports & Audits', icon: BarChart3 },
     { id: 'system300', label: '300 Ops & Compliance', icon: Cpu },
     { id: 'ops', label: 'Operations & Shifts', icon: ClipboardList },
+    { id: 'clinical', label: 'Clinical Stores & Hub', icon: Stethoscope },
     { id: 'settings', label: 'RBAC & Settings', icon: Settings }
   ];
 
