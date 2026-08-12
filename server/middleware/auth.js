@@ -1,4 +1,7 @@
-const jwt = require('jsonwebtoken');
+const isProduction = process.env.NODE_ENV === 'production';
+if (isProduction && !process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is required in production mode!');
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hospital_inventory_secret_key_2026';
 
@@ -23,8 +26,16 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  // Also check x-demo-role header for role simulator UI testing if token not supplied
   if (!token) {
+    if (isProduction) {
+      return res.status(401).json({
+        success: false,
+        code: 'AUTHENTICATION_REQUIRED',
+        message: 'Authentication token is required in production environment.'
+      });
+    }
+
+    // Development mode fallback role simulation
     const demoRole = req.headers['x-demo-role'] || 'SUPER_ADMIN';
     req.user = {
       id: 'usr-demo-001',

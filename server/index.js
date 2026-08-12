@@ -10,10 +10,21 @@ dotenv.config();
 const app = express();
 
 // Security Middleware Stack
+const allowedOrigins = process.env.APP_ORIGIN
+  ? process.env.APP_ORIGIN.split(',').map(s => s.trim())
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-demo-role']
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS security policy'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-demo-role', 'idempotency-key', 'x-idempotency-key']
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -81,7 +92,10 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(async () => {
-  await seedDatabase();
+  const shouldSeed = process.env.SEED_ON_STARTUP === 'true' || (!process.env.MONGODB_URI && process.env.NODE_ENV !== 'production');
+  if (shouldSeed) {
+    await seedDatabase();
+  }
   startExpiryAlertJob();
   startLowStockJob();
   app.listen(PORT, () => {

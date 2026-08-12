@@ -8,22 +8,27 @@ const GoodsReceipt = require('../models/GoodsReceipt');
 const Batch = require('../models/Batch');
 const { recordStockTransaction } = require('../services/ledgerService');
 const { authenticateToken } = require('../middleware/auth');
+const { requireIdempotency } = require('../middleware/idempotencyMiddleware');
 const AuditLog = require('../models/AuditLog');
 
-// Get Suppliers
-router.get('/suppliers', authenticateToken, async (req, res, next) => {
+router.use(authenticateToken);
+
+// Get Suppliers (scoped by hospitalId)
+router.get('/suppliers', async (req, res, next) => {
   try {
-    const suppliers = await Supplier.find();
+    const hospitalId = req.user.hospitalId;
+    const suppliers = await Supplier.find({ hospitalId });
     res.json({ success: true, data: suppliers });
   } catch (err) {
     next(err);
   }
 });
 
-// Create Supplier
-router.post('/suppliers', authenticateToken, async (req, res, next) => {
+// Create Supplier (scoped by hospitalId)
+router.post('/suppliers', async (req, res, next) => {
   try {
-    const supplier = new Supplier(req.body);
+    const supplierData = { ...req.body, hospitalId: req.user.hospitalId };
+    const supplier = new Supplier(supplierData);
     await supplier.save();
     res.status(201).json({ success: true, data: supplier });
   } catch (err) {
@@ -31,20 +36,21 @@ router.post('/suppliers', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Get Purchase Requests (PR)
-router.get('/purchase-requests', authenticateToken, async (req, res, next) => {
+// Get Purchase Requests (PR) (scoped by hospitalId)
+router.get('/purchase-requests', async (req, res, next) => {
   try {
-    const prs = await PurchaseRequest.find().sort({ createdAt: -1 });
+    const hospitalId = req.user.hospitalId;
+    const prs = await PurchaseRequest.find({ hospitalId }).sort({ createdAt: -1 });
     res.json({ success: true, data: prs });
   } catch (err) {
     next(err);
   }
 });
 
-// Create Purchase Request
-router.post('/purchase-requests', authenticateToken, async (req, res, next) => {
+// Create Purchase Request (scoped by hospitalId)
+router.post('/purchase-requests', async (req, res, next) => {
   try {
-    const prData = req.body;
+    const prData = { ...req.body, hospitalId: req.user.hospitalId };
     prData.prNumber = 'PR-2026-' + Math.floor(1000 + Math.random() * 9000);
     prData.requestedBy = req.user.fullName || 'Procurement Officer';
 
@@ -57,20 +63,21 @@ router.post('/purchase-requests', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Get RFQs
-router.get('/rfqs', authenticateToken, async (req, res, next) => {
+// Get RFQs (scoped by hospitalId)
+router.get('/rfqs', async (req, res, next) => {
   try {
-    const rfqs = await RFQ.find().sort({ createdAt: -1 });
+    const hospitalId = req.user.hospitalId;
+    const rfqs = await RFQ.find({ hospitalId }).sort({ createdAt: -1 });
     res.json({ success: true, data: rfqs });
   } catch (err) {
     next(err);
   }
 });
 
-// Create RFQ
-router.post('/rfqs', authenticateToken, async (req, res, next) => {
+// Create RFQ (scoped by hospitalId)
+router.post('/rfqs', async (req, res, next) => {
   try {
-    const rfqData = req.body;
+    const rfqData = { ...req.body, hospitalId: req.user.hospitalId };
     rfqData.rfqNumber = 'RFQ-2026-' + Math.floor(1000 + Math.random() * 9000);
     const rfq = new RFQ(rfqData);
     await rfq.save();
@@ -80,20 +87,21 @@ router.post('/rfqs', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Get Purchase Orders
-router.get('/purchase-orders', authenticateToken, async (req, res, next) => {
+// Get Purchase Orders (scoped by hospitalId)
+router.get('/purchase-orders', async (req, res, next) => {
   try {
-    const orders = await PurchaseOrder.find().sort({ createdAt: -1 });
+    const hospitalId = req.user.hospitalId;
+    const orders = await PurchaseOrder.find({ hospitalId }).sort({ createdAt: -1 });
     res.json({ success: true, data: orders });
   } catch (err) {
     next(err);
   }
 });
 
-// Create Purchase Order
-router.post('/purchase-orders', authenticateToken, async (req, res, next) => {
+// Create Purchase Order (scoped by hospitalId)
+router.post('/purchase-orders', async (req, res, next) => {
   try {
-    const poData = req.body;
+    const poData = { ...req.body, hospitalId: req.user.hospitalId };
     if (!poData.poNumber) {
       poData.poNumber = 'PO-2026-' + Math.floor(1000 + Math.random() * 9000);
     }
@@ -102,6 +110,7 @@ router.post('/purchase-orders', authenticateToken, async (req, res, next) => {
     await order.save();
 
     await AuditLog.create({
+      hospitalId: req.user.hospitalId,
       action: 'PO_CREATED',
       module: 'PROCUREMENT',
       performedBy: req.user.fullName || 'Procurement Officer',
@@ -115,11 +124,16 @@ router.post('/purchase-orders', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Receive Goods Receipt Note (GRN) with user-entered ACTUAL delivered batch expiry & QC Status!
-router.post('/purchase-orders/:id/grn', authenticateToken, async (req, res, next) => {
+// Receive Goods Receipt Note (GRN) with idempotency key guard & tenant isolation
+router.post('/purchase-orders/:id/grn', requireIdempotency, async (req, res, next) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id);
+    const hospitalId = req.user.hospitalId;
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, hospitalId });
     if (!po) return res.status(404).json({ success: false, message: 'Purchase Order not found' });
+
+    if (po.status === 'RECEIVED') {
+      return res.status(400).json({ success: false, message: 'Purchase Order has already been received and processed.' });
+    }
 
     const { itemsDelivery, deliveryChallanNo, invoiceNumber, qcInspectorName } = req.body;
     const grnNo = 'GRN-2026-' + Math.floor(1000 + Math.random() * 9000);
@@ -131,18 +145,16 @@ router.post('/purchase-orders/:id/grn', authenticateToken, async (req, res, next
 
     const grnItems = [];
 
-    // Process each delivered item line with actual batch number & physical expiry date
     for (let i = 0; i < po.items.length; i++) {
       const item = po.items[i];
       const delivery = (itemsDelivery && itemsDelivery[i]) || {};
 
       const batchNo = delivery.batchNumber || ('BAT-2026-' + Math.floor(1000 + Math.random() * 9000));
-      // Actual physical expiry date supplied during delivery
       const physicalExpiry = delivery.expiryDate ? new Date(delivery.expiryDate) : new Date(Date.now() + 730*24*60*60*1000);
       const qcStatus = delivery.qcStatus || 'PASSED';
 
       const batch = new Batch({
-        hospitalId: req.user.hospitalId || 'HOSP-001',
+        hospitalId,
         productId: item.productId,
         productSku: item.productSku,
         productName: item.productName,
@@ -161,9 +173,8 @@ router.post('/purchase-orders/:id/grn', authenticateToken, async (req, res, next
       await batch.save();
 
       if (qcStatus === 'PASSED') {
-        // Record stock ledger addition
         await recordStockTransaction({
-          hospitalId: req.user.hospitalId || 'HOSP-001',
+          hospitalId,
           productId: item.productId,
           warehouseName: 'Central Store',
           batchNumber: batchNo,
@@ -194,7 +205,7 @@ router.post('/purchase-orders/:id/grn', authenticateToken, async (req, res, next
     }
 
     const grn = new GoodsReceipt({
-      hospitalId: req.user.hospitalId || 'HOSP-001',
+      hospitalId,
       grnNumber: grnNo,
       poNumber: po.poNumber,
       supplierName: po.supplierName,

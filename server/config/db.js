@@ -8,7 +8,10 @@ const connectDB = async () => {
     let mongoUri = process.env.MONGODB_URI;
 
     if (!mongoUri) {
-      console.log('No MONGODB_URI found in environment. Starting in-memory MongoDB server...');
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('FATAL: MONGODB_URI environment variable is required in production environment!');
+      }
+      console.log('No MONGODB_URI found in development environment. Starting in-memory MongoDB server...');
       try {
         mongoServer = await MongoMemoryServer.create({
           instance: { dbName: 'hospital_inventory' },

@@ -3,20 +3,26 @@ const Batch = require('../models/Batch');
 /**
  * FEFO (First Expired First Out) Engine
  * Selects batches for a given product sorted by expiry date ASC.
- * Excludes expired, quarantined, or recalled batches.
+ * Excludes expired, quarantined, recalled, or blocked batches.
  */
-const allocateStockFEFO = async (productId, requiredQuantity) => {
+const allocateStockFEFO = async (productId, requiredQuantity, hospitalId = null) => {
   const now = new Date();
   
-  // Find available batches for this product sorted by earliest expiry date
-  const availableBatches = await Batch.find({
+  const query = {
     productId,
-    status: 'AVAILABLE',
-    qualityStatus: 'APPROVED',
-    recallStatus: 'NORMAL',
+    status: { $in: ['AVAILABLE', 'ACTIVE'] },
+    qualityStatus: { $nin: ['REJECTED', 'QUARANTINED', 'PENDING'] },
+    recallStatus: { $nin: ['RECALLED', 'PARTIALLY_RECALLED'] },
     expiryDate: { $gt: now },
     currentQuantity: { $gt: 0 }
-  }).sort({ expiryDate: 1 });
+  };
+
+  if (hospitalId) {
+    query.hospitalId = hospitalId;
+  }
+
+  // Find available batches for this product sorted by earliest expiry date
+  const availableBatches = await Batch.find(query).sort({ expiryDate: 1 });
 
   let remainingToFulfill = requiredQuantity;
   const allocations = [];
