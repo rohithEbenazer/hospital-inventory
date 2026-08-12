@@ -4,14 +4,14 @@ const InventoryBalance = require('../models/InventoryBalance');
 const Product = require('../models/Product');
 
 /**
- * Section 13 & 14 Atomic Inventory Transaction Engine
+ * Section 14 & 15 Atomic Inventory Transaction Engine
  * The transaction ledger is the authoritative source of truth.
  */
 const recordStockTransaction = async ({
   hospitalId = 'HOSP-001',
   productId,
   warehouseId,
-  warehouseName = 'Central Store',
+  warehouseName = 'Central Main Warehouse',
   locationId,
   locationCode,
   batchId,
@@ -25,7 +25,8 @@ const recordStockTransaction = async ({
   unitCost,
   reason,
   performedBy = 'System Admin',
-  approvedBy
+  approvedBy,
+  metadata
 }) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -97,8 +98,14 @@ const recordStockTransaction = async ({
       hospitalId,
       productId: product._id,
       productName: product.name,
+      warehouseId,
       warehouseName,
+      locationId,
+      locationCode,
+      batchId,
       batchNumber,
+      serialNumberId,
+      serialNumber,
       transactionType,
       referenceType,
       referenceId,
@@ -108,7 +115,8 @@ const recordStockTransaction = async ({
       balanceAfter: newQty,
       reason: reason || `${transactionType} operation`,
       performedBy,
-      approvedBy
+      approvedBy,
+      metadata
     });
 
     await ledgerEntry.save({ session });
@@ -124,4 +132,29 @@ const recordStockTransaction = async ({
   }
 };
 
-module.exports = { recordStockTransaction };
+/**
+ * Section 14 Rule: Create Reversal Transaction for Ledger Corrections
+ */
+const recordReversalTransaction = async ({ originalTxNumber, reason, performedBy }) => {
+  const originalTx = await TransactionLedger.findOne({ transactionNumber: originalTxNumber });
+  if (!originalTx) throw new Error(`Original transaction ${originalTxNumber} not found.`);
+
+  return await recordStockTransaction({
+    hospitalId: originalTx.hospitalId,
+    productId: originalTx.productId,
+    warehouseId: originalTx.warehouseId,
+    warehouseName: originalTx.warehouseName,
+    locationId: originalTx.locationId,
+    batchId: originalTx.batchId,
+    serialNumberId: originalTx.serialNumberId,
+    transactionType: 'ADJUSTMENT_IN',
+    referenceType: 'REVERSAL',
+    referenceId: originalTx.transactionNumber,
+    quantity: -originalTx.quantity, // Reversal flips the quantity sign!
+    unitCost: originalTx.unitCost,
+    reason: `REVERSAL of ${originalTx.transactionNumber}: ${reason || 'Correction'}`,
+    performedBy: performedBy || 'System Admin'
+  });
+};
+
+module.exports = { recordStockTransaction, recordReversalTransaction };
