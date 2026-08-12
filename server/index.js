@@ -65,9 +65,22 @@ app.use('/api/v1/fhir', require('./routes/clinicalRoutes'));
 app.use('/api/v1/enterprise', require('./routes/enterpriseRoutes'));
 app.use('/api/v1/supplier-portal', require('./routes/enterpriseRoutes'));
 app.use('/api/v1/mobile-sync', require('./routes/enterpriseRoutes'));
-app.use('/api/v1/health', require('./routes/enterpriseRoutes'));
 
-// Legacy endpoint backward compatibility aliases
+// Section 46-51 REST Specification Aliases (/api/v1/inventory/* & /api/v1/procurement/*)
+app.use('/api/v1/inventory/products', require('./routes/productRoutes'));
+app.use('/api/v1/inventory/categories', require('./routes/categoryRoutes'));
+app.use('/api/v1/inventory/warehouses', require('./routes/warehouseRoutes'));
+app.use('/api/v1/inventory/locations', require('./routes/locationRoutes'));
+app.use('/api/v1/inventory/stock', require('./routes/stockRoutes'));
+app.use('/api/v1/inventory/batches', require('./routes/stockRoutes'));
+app.use('/api/v1/inventory/serials', require('./routes/assetRoutes'));
+app.use('/api/v1/inventory/indents', require('./routes/indentRoutes'));
+app.use('/api/v1/inventory/transfers', require('./routes/transferRoutes'));
+app.use('/api/v1/inventory/adjustments', require('./routes/adjustmentRoutes'));
+app.use('/api/v1/inventory/counts', require('./routes/stockCountRoutes'));
+app.use('/api/v1/inventory/recalls', require('./routes/recallRoutes'));
+
+// Legacy & Direct Aliases
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api', require('./routes/categoryRoutes'));
