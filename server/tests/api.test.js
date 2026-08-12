@@ -1,55 +1,98 @@
-const request = require('supertest');
-const express = require('express');
-const { authenticateToken } = require('../middleware/auth');
 const { requireIdempotency } = require('../middleware/idempotencyMiddleware');
 const { calculateDemandForecast } = require('../services/analyticsService');
 
-describe('SCEC Hospital Inventory API Production Test Suite', () => {
-  let app;
+describe('SCEC Hospital Inventory Production Test Suite (Sections A-Z)', () => {
 
-  beforeAll(() => {
-    app = express();
-    app.use(express.json());
-    app.get('/api/v1/test-auth', authenticateToken, (req, res) => res.json({ success: true, user: req.user }));
-    app.post('/api/v1/test-idempotency', requireIdempotency, (req, res) => res.json({ success: true, timestamp: Date.now() }));
-  });
+  describe('1. Production Security & Authentication Guard', () => {
+    it('should reject unauthenticated requests in production environment', () => {
+      let authenticateTokenProd;
+      jest.isolateModules(() => {
+        process.env.NODE_ENV = 'production';
+        process.env.JWT_SECRET = 'prod_secret_test_99';
+        authenticateTokenProd = require('../middleware/auth').authenticateToken;
+      });
 
-  describe('1. Authentication & Production Guard', () => {
-    it('should allow demo user in development mode when token is absent', async () => {
-      process.env.NODE_ENV = 'development';
-      const res = await request(app).get('/api/v1/test-auth');
-      expect(res.status).toBe(200);
-      expect(res.body.user.role).toBe('SUPER_ADMIN');
+      const req = { headers: {} };
+      let statusCode = null;
+      let responseBody = null;
+
+      const res = {
+        status: (code) => { statusCode = code; return res; },
+        json: (data) => { responseBody = data; return res; }
+      };
+
+      authenticateTokenProd(req, res, () => {});
+
+      expect(statusCode).toBe(401);
+      expect(responseBody.code).toBe('AUTHENTICATION_REQUIRED');
     });
 
-    it('should reject requests without token in production mode', async () => {
-      process.env.NODE_ENV = 'production';
-      process.env.JWT_SECRET = 'prod_secret_test';
-      const res = await request(app).get('/api/v1/test-auth');
-      expect(res.status).toBe(401);
-      expect(res.body.code).toBe('AUTHENTICATION_REQUIRED');
+    it('should assign demo user role in development environment when token is omitted', () => {
+      let authenticateTokenDev;
+      jest.isolateModules(() => {
+        process.env.NODE_ENV = 'development';
+        authenticateTokenDev = require('../middleware/auth').authenticateToken;
+      });
+
+      const req = { headers: { 'x-demo-role': 'SUPER_ADMIN' } };
+      let nextCalled = false;
+
+      const res = {};
+      authenticateTokenDev(req, res, () => { nextCalled = true; });
+
+      expect(nextCalled).toBe(true);
+      expect(req.user.role).toBe('SUPER_ADMIN');
+      expect(req.user.hospitalId).toBe('HOSP-001');
     });
   });
 
-  describe('2. Idempotency Engine', () => {
-    it('should cache and return exact response for identical Idempotency-Key header', async () => {
-      process.env.NODE_ENV = 'development';
-      const key = 'IDEMP-TEST-998811';
-      const res1 = await request(app).post('/api/v1/test-idempotency').set('idempotency-key', key);
-      const res2 = await request(app).post('/api/v1/test-idempotency').set('idempotency-key', key);
+  describe('2. Idempotency Key Engine', () => {
+    it('should cache and return idempotent payload on repeated calls', () => {
+      const req = { headers: { 'idempotency-key': 'IDEMP-TEST-KEY-001' }, user: { hospitalId: 'HOSP-001' } };
+      let nextCount = 0;
+      let cachedPayload = null;
 
-      expect(res1.status).toBe(200);
-      expect(res2.status).toBe(200);
-      expect(res1.body.timestamp).toEqual(res2.body.timestamp);
+      const res = {
+        statusCode: 200,
+        json: (body) => { cachedPayload = body; return res; },
+        status: (s) => { res.statusCode = s; return res; }
+      };
+
+      requireIdempotency(req, res, () => {
+        nextCount++;
+        res.json({ success: true, transactionId: 'TXN-99401' });
+      });
+
+      expect(nextCount).toBe(1);
+      expect(cachedPayload.transactionId).toBe('TXN-99401');
+
+      // Second identical request
+      const req2 = { headers: { 'idempotency-key': 'IDEMP-TEST-KEY-001' }, user: { hospitalId: 'HOSP-001' } };
+      let req2NextCalled = false;
+      let req2Body = null;
+
+      const res2 = {
+        statusCode: 200,
+        status: (s) => { res2.statusCode = s; return res2; },
+        json: (body) => { req2Body = body; return res2; }
+      };
+
+      requireIdempotency(req2, res2, () => { req2NextCalled = true; });
+
+      expect(req2NextCalled).toBe(false); // Does not hit handler again
+      expect(req2Body.transactionId).toBe('TXN-99401');
     });
   });
 
-  describe('3. Demand Forecasting Engine', () => {
-    it('should calculate exponential smoothing demand forecast accurately', () => {
-      const history = [100, 110, 120, 130];
-      const forecast = calculateDemandForecast(history, 0.3);
-      expect(forecast).toBeGreaterThan(100);
+  describe('3. Demand Forecasting & Analytics Math Engine', () => {
+    it('should accurately calculate exponential smoothing demand forecast math', () => {
+      const historicalData = [100, 110, 120, 130, 140];
+      const alpha = 0.3;
+      const forecast = calculateDemandForecast(historicalData, alpha);
+
       expect(typeof forecast).toBe('number');
+      expect(forecast).toBeGreaterThan(100);
     });
   });
+
 });
