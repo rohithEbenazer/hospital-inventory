@@ -257,7 +257,7 @@ const Dashboard = () => {
             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#f8fafc' }}>Warning Alerts</h3>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {warningAlerts?.slice(0, 3).map(alert => (
+            {warningAlerts?.map(alert => (
               <div key={alert.id} style={{ padding: '0.75rem', background: '#f59e0b15', borderRadius: '8px', borderLeft: '4px solid #f59e0b' }}>
                 <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fde68a', margin: 0 }}>{alert.message}</p>
                 <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{alert.timestamp}</span>
