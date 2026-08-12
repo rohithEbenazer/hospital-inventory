@@ -7,38 +7,122 @@ const InventoryBalance = require('../models/InventoryBalance');
 const Product = require('../models/Product');
 const Batch = require('../models/Batch');
 
-// GET Executive Dashboard stats for frontend Dashboard.jsx
+// GET Executive Dashboard stats for frontend Dashboard.jsx (Section 8 Specification)
 router.get(['/dashboard-stats', '/inventory/dashboard-stats'], async (req, res) => {
   try {
     const hospitalId = req.user?.hospitalId || 'HOSP-001';
     
-    const [totalValueData, lowStockCount, nearExpiryCount, availableCount] = await Promise.all([
+    const [totalValueData, lowStockCount, outOfStockCount, nearExpiryCount, expiredCount, availableCount] = await Promise.all([
       getTotalInventoryValue(hospitalId),
-      InventoryBalance.countDocuments({ hospitalId, availableQty: { $lte: 10 } }),
-      Batch.countDocuments({ hospitalId, status: { $in: ['ACTIVE', 'AVAILABLE'] }, expiryDate: { $lte: new Date(Date.now() + 90*86400000) } }),
+      InventoryBalance.countDocuments({ hospitalId, availableQty: { $gt: 0, $lte: 10 } }),
+      InventoryBalance.countDocuments({ hospitalId, availableQty: { $eq: 0 } }),
+      Batch.countDocuments({ hospitalId, status: { $in: ['ACTIVE', 'AVAILABLE'] }, expiryDate: { $gt: new Date(), $lte: new Date(Date.now() + 90*86400000) } }),
+      Batch.countDocuments({ hospitalId, status: 'EXPIRED' }),
       InventoryBalance.aggregate([{ $match: { hospitalId } }, { $group: { _id: null, total: { $sum: '$availableQty' } } }])
     ]);
 
     res.json({
+      // 8.1 10 Executive KPI Cards
       kpi: {
         totalStockValue: totalValueData?.totalValue || 148500,
-        availableStockCount: availableCount[0]?.total || 18250,
-        nearExpiryCount: nearExpiryCount || 3,
-        lowStockCount: lowStockCount || 2
+        availableStock: availableCount[0]?.total || 18250,
+        reservedStock: 1240,
+        lowStockItems: lowStockCount || 2,
+        outOfStock: outOfStockCount || 1,
+        nearExpiry: nearExpiryCount || 3,
+        expired: expiredCount || 1,
+        pendingIndents: 4,
+        pendingPurchaseOrders: 3,
+        pendingGRNs: 2
       },
+
+      // 8.2 10 Visual Charts
       categoryStats: [
         { name: 'Pharmaceuticals & Drugs', value: 45 },
         { name: 'Surgical Consumables', value: 30 },
         { name: 'Diagnostic Reagents', value: 15 },
         { name: 'Medical Equipment & Spares', value: 10 }
       ],
+      storeStats: [
+        { name: 'Central Store', value: 65000 },
+        { name: 'Pharmacy Sub-store', value: 42000 },
+        { name: 'OT Store', value: 24000 },
+        { name: 'ICU Ward Par', value: 11500 },
+        { name: 'Lab Reagent Store', value: 6000 }
+      ],
+      purchaseTrend: [
+        { month: 'Mar', purchase: 48000 },
+        { month: 'Apr', purchase: 45000 },
+        { month: 'May', purchase: 55000 },
+        { month: 'Jun', purchase: 50000 },
+        { month: 'Jul', purchase: 62000 },
+        { month: 'Aug', purchase: 60000 }
+      ],
       consumptionTrend: [
-        { month: 'Mar', consumption: 42000, procurement: 48000 },
-        { month: 'Apr', consumption: 46000, procurement: 45000 },
-        { month: 'May', consumption: 51000, procurement: 55000 },
-        { month: 'Jun', consumption: 49000, procurement: 50000 },
-        { month: 'Jul', consumption: 58000, procurement: 62000 },
-        { month: 'Aug', consumption: 62000, procurement: 60000 }
+        { month: 'Mar', consumption: 42000 },
+        { month: 'Apr', consumption: 46000 },
+        { month: 'May', consumption: 51000 },
+        { month: 'Jun', consumption: 49000 },
+        { month: 'Jul', consumption: 58000 },
+        { month: 'Aug', consumption: 62000 }
+      ],
+      expiryTrend: [
+        { month: 'Sep', count: 2 },
+        { month: 'Oct', count: 5 },
+        { month: 'Nov', count: 3 },
+        { month: 'Dec', count: 8 },
+        { month: 'Jan', count: 4 }
+      ],
+      fastMoving: [
+        { name: 'Paracetamol 500mg', volume: 4500 },
+        { name: 'N95 Respirators', volume: 3800 },
+        { name: 'Normal Saline 500ml', volume: 3100 },
+        { name: 'Surgical Gloves L', volume: 2900 },
+        { name: 'IV Cannula 20G', volume: 2400 }
+      ],
+      slowMoving: [
+        { name: 'Cefotaxime 1g Inj', volume: 12 },
+        { name: 'Metoprolol 50mg', volume: 15 },
+        { name: 'Spinal Needles 25G', volume: 18 },
+        { name: 'Suction Catheters 14F', volume: 22 },
+        { name: 'Endotracheal Tube 7.5', volume: 25 }
+      ],
+      nonMoving: [
+        { name: 'Halothane Inhalation 250ml', daysDormant: 180 },
+        { name: 'Dexamethasone 8mg Inj', daysDormant: 120 },
+        { name: 'Tracheostomy Tube 8.0', daysDormant: 95 }
+      ],
+      departmentConsumption: [
+        { name: 'Emergency Room (ER)', spend: 34000 },
+        { name: 'Main Operation Theatre (OT)', spend: 28500 },
+        { name: 'Intensive Care Unit (ICU)', spend: 22000 },
+        { name: 'General Male Ward', spend: 14200 },
+        { name: 'Outpatient Clinic (OPD)', spend: 9800 }
+      ],
+      supplierSpend: [
+        { name: 'Apex Meditech Ltd', spend: 54000 },
+        { name: 'Sun Pharma Distribution', spend: 41000 },
+        { name: 'Cipla Supply Chain', spend: 32000 },
+        { name: 'Novartis Healthcare', spend: 21500 }
+      ],
+
+      // 8.3 Alerts (Critical, Warning, Information)
+      criticalAlerts: [
+        { id: 1, type: 'EXPIRED_MEDICINE', message: 'Batch BATCH-AUG-2026 (Amoxicillin 500mg) expired today', timestamp: 'Just now' },
+        { id: 2, type: 'RECALLED_BATCH', message: 'Manufacturer Recall Notice received for Lot RECALL-88392', timestamp: '1 hour ago' },
+        { id: 3, type: 'OUT_OF_STOCK', message: 'Critical item Propofol 10mg/ml is completely Out of Stock', timestamp: '2 hours ago' }
+      ],
+      warningAlerts: [
+        { id: 1, type: 'LOW_STOCK', message: 'Surgical Gloves L is below safe reorder threshold (8 units remaining)', timestamp: '3 hours ago' },
+        { id: 2, type: 'NEAR_EXPIRY', message: '3 batches expiring within 90 days require FEFO priority issue', timestamp: 'Today' },
+        { id: 3, type: 'PENDING_GRN', message: 'Shipment GRN-2026-0044 awaiting QC inspector verification', timestamp: 'Today' },
+        { id: 4, type: 'PENDING_APPROVAL', message: 'Indent IND-2026-0091 requires Executive Sign-off (>₹50,000)', timestamp: 'Yesterday' },
+        { id: 5, type: 'OVERDUE_PO', message: 'Purchase Order PO-2026-0812 from Sun Pharma is 2 days overdue', timestamp: '2 days ago' }
+      ],
+      infoAlerts: [
+        { id: 1, type: 'CONTRACT_EXPIRY', message: 'Apex Meditech AMC Rate Contract expiring in 15 days', timestamp: 'Upcoming' },
+        { id: 2, type: 'WARRANTY_EXPIRY', message: 'Biomedical Asset MRI Magnetom Warranty expiring on 2026-09-30', timestamp: 'Upcoming' },
+        { id: 3, type: 'SCHEDULED_COUNT', message: 'Quarterly Physical Cycle Stock Count scheduled for Central Store on Aug 15', timestamp: 'Scheduled' }
       ]
     });
   } catch (err) {
